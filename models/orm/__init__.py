@@ -2,6 +2,7 @@ from models.orm.alarm import AlarmAttributionOrm, AlarmOrm
 from models.orm.audit import AuditLogOrm, IdempotencyOrm, JobRunOrm
 from models.orm.base import Base
 from models.orm.machine import ChannelBiasOrm, MachineOrm, RunSampleOrm, SlotOrm
+from models.orm.plan import PlanRevisionOrm
 from models.orm.stats import Agg5mOrm, BatchStatOrm, PlanOrm, RunOrm
 from models.orm.user import UserOrm
 
@@ -12,6 +13,7 @@ __all__ = [
     "IdempotencyOrm",
     "JobRunOrm",
     "MachineOrm",
+    "PlanRevisionOrm",
     "SlotOrm",
     "RunSampleOrm",
     "ChannelBiasOrm",

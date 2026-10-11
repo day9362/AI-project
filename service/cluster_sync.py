@@ -16,12 +16,18 @@ class ClusterClient:
     def __init__(self) -> None:
         self.base = settings.cluster_base_url.rstrip("/")
 
-    async def get(self, path: str) -> Any:
+    async def get(self, path: str, timeout: float | None = None) -> Any:
+        return await self._send("GET", path, timeout=timeout)
+
+    async def post(self, path: str, body: dict) -> Any:
+        return await self._send("POST", path, body)
+
+    async def _send(self, method: str, path: str, body: dict | None = None, timeout: float | None = None) -> Any:
         headers = {}
         if settings.cluster_token:
             headers["Authorization"] = f"Bearer {settings.cluster_token}"
-        async with httpx.AsyncClient(base_url=self.base, timeout=settings.cluster_timeout_s) as client:
-            response = await client.get(path, headers=headers)
+        async with httpx.AsyncClient(base_url=self.base, timeout=timeout or settings.cluster_timeout_s) as client:
+            response = await client.request(method, path, headers=headers, json=body)
             response.raise_for_status()
             return response.json()
 

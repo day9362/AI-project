@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from sqlalchemy import text
 
 from api.auth import router as auth_router
+from api.plans import router as plans_router
 from api.overview.alarms import router as alarms_router
 from api.overview.machines import router as machines_router
 from api.overview.stats import router as stats_router
@@ -15,6 +16,7 @@ api_router.include_router(machines_router)
 api_router.include_router(stats_router)
 api_router.include_router(alarms_router)
 api_router.include_router(ws_router)
+api_router.include_router(plans_router)
 
 
 @api_router.get("/health")
