@@ -11,5 +11,20 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     default_password: str = "changeme"
 
+    cluster_base_url: str = "https://cluster.simuoss.cn/api"
+    cluster_token: str = ""
+    cluster_timeout_s: float = 20
+    cluster_sync_enabled: bool = True
+
+    fleet_interval_s: int = 5
+    slots_interval_s: int = 5
+    runs_interval_s: int = 5
+    agg_interval_s: int = 30
+    alarm_interval_s: int = 10
+
+    drift_c: float = 0.15
+    degraded_alarm: bool = True
+    sentinel_as_data_anomaly: bool = True
+
 
 settings = Settings()
