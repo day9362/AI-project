@@ -16,6 +16,7 @@ from service.overview.alarm_service import AlarmService
 from service.overview.machine_service import MachineService
 from service.overview.stats_service import StatsService
 from service.plan_service import PlanService
+from service.production_service import ProductionService
 
 
 async def db_session():
@@ -58,6 +59,13 @@ def stats_service(session: Annotated[AsyncSession, Depends(db_session)]) -> Stat
 
 def alarm_service(session: Annotated[AsyncSession, Depends(db_session)]) -> AlarmService:
     return AlarmService(AlarmRepo(session), MachineRepo(session), StatsRepo(session), AuditRepo(session))
+
+
+def production_service(
+    session: Annotated[AsyncSession, Depends(db_session)],
+    user: Annotated[UserEntity, Depends(current_user)],
+) -> ProductionService:
+    return ProductionService(session, user)
 
 
 def plan_service(

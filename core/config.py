@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     drift_c: float = 0.15
     degraded_alarm: bool = True
     sentinel_as_data_anomaly: bool = True
+    sim_mode: bool = False
+
+    mcp_url: str = "http://127.0.0.1:8100/mcp/"
+    anthropic_base_url: str = ""
+    anthropic_api_key: str = ""
+    anthropic_model: str = "deepseek-flash"
+    catalog_interval_s: int = 15
 
 
 settings = Settings()

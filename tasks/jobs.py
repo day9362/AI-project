@@ -39,6 +39,14 @@ class _Backoff:
 _fleet_backoff = _Backoff()
 _slots_backoff = _Backoff()
 _runs_backoff = _Backoff()
+_catalog_backoff = _Backoff()
+
+_DEFAULT_MODELS = [
+    ("tb158", 12.05, 0.3, 2.5),
+    ("tb172", 12.35, 0.3, 2.5),
+    ("tb179", 12.5, 0.3, 2.5),
+    ("HVP1307G17-1", 12.2, 0.3, 3.5),
+]
 
 
 async def cleanup_idempotency(kind: str = "scheduled") -> None:
@@ -74,11 +82,62 @@ async def sync_runs() -> None:
         _runs_backoff.ok()
         if count:
             await record_job("sync.runs", "scheduled", "ok", started, f"upsert={count}")
+            await hub.publish("runs", {"count": count})
             await rollup_agg()
     except Exception as exc:
         _runs_backoff.fail()
         log.warning("sync.runs failed, retry in %.0fs: %r", _runs_backoff.delay, exc)
         await record_job("sync.runs", "scheduled", "failed", started, str(exc))
+
+
+async def sync_catalog() -> None:
+    if not settings.cluster_sync_enabled or not _catalog_backoff.ready():
+        return
+    started = now_ms()
+    try:
+        async with SessionLocal() as session:
+            from models.orm.production import ProductModelOrm
+            from repo.production_repo import ProductionRepo
+            from service.production_sync import CatalogSync
+            from service.realtime import hub as realtime
+
+            repo = ProductionRepo(session)
+            sync = CatalogSync(repo)
+            models = batches = 0
+            try:
+                models = await sync.sync_models()
+            except Exception as exc:
+                log.info("sync.models skipped: %r", exc)
+            if not await repo.models():
+                await repo.replace_models([
+                    ProductModelOrm(model=name, resistance_mean=mean, resistance_sd=sd, power_w=power)
+                    for name, mean, sd, power in _DEFAULT_MODELS
+                ])
+            try:
+                batches = await sync.sync_batches()
+            except Exception as exc:
+                log.info("sync.batches skipped: %r", exc)
+            try:
+                active = await sync.sync_production()
+            except Exception as exc:
+                log.info("sync.production skipped: %r", exc)
+                active = False
+            current = await repo.production()
+            snapshot = None if current is None else {
+                "batch_id": current.batch_id, "queue_remaining": current.queue_remaining,
+                "plan_id": current.plan_id, "plan_version": current.plan_version,
+            }
+            await session.commit()
+        _catalog_backoff.ok()
+        await record_job("sync.catalog", "scheduled", "ok", started, f"models={models} batches={batches}")
+        if snapshot is not None:
+            await realtime.publish("production", snapshot)
+        elif not active:
+            await realtime.publish("batches", {"updated": batches})
+    except Exception as exc:
+        _catalog_backoff.fail()
+        log.warning("sync.catalog failed, retry in %.0fs: %r", _catalog_backoff.delay, exc)
+        await record_job("sync.catalog", "scheduled", "failed", started, str(exc))
 
 
 async def rollup_agg() -> None:

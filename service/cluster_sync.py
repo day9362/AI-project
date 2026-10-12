@@ -7,6 +7,7 @@ from core.clock import now_ms
 from core.config import settings
 from models.entity.overview import MachineEntity, RunEntity, SlotEntity
 from repo.machine_repo import MachineRepo
+from repo.production_repo import ProductionRepo
 from repo.stats_repo import StatsRepo
 
 log = logging.getLogger(__name__)
@@ -213,15 +214,30 @@ class ClusterSync:
 
     async def sync_runs(self) -> int:
         payload = await self.client.get("/runs")
+        known = [row.batch_id for row in await ProductionRepo(self.stats.session).batches()]
         keep: set[str] = set()
         for raw in _items(payload, "runs", "items"):
             run = run_from_cluster(raw)
             if run is None:
                 continue
+            if not run.batch_id:
+                run.batch_id = batch_of_serial(run.serial_number, known)
             await self.stats.upsert_run(run)
+            result = raw.get("result") if isinstance(raw.get("result"), dict) else {}
+            await ProductionRepo(self.stats.session).save_result(run.run_id, result)
             keep.add(run.run_id)
         await self.stats.delete_runs_except(keep)
         return len(keep)
+
+
+def batch_of_serial(serial: str, batch_ids: list[str]) -> str:
+    serial = serial.strip()
+    if not serial:
+        return ""
+    matches = [batch_id for batch_id in batch_ids if batch_id and (serial == batch_id or serial.startswith(batch_id + "-"))]
+    if not matches:
+        return ""
+    return max(matches, key=len)
 
 
 def _machine_changed(old: MachineEntity, new: MachineEntity) -> bool:

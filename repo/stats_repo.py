@@ -50,6 +50,8 @@ class StatsRepo:
         else:
             if not values["ended_at"]:
                 values.pop("ended_at")
+            if not values["batch_id"]:
+                values.pop("batch_id")
             for key, value in values.items():
                 setattr(row, key, value)
 
