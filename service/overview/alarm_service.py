@@ -2,6 +2,7 @@ from dataclasses import asdict
 
 from core.clock import now_ms
 from core.config import settings
+from service.platform_state import live
 from core.errors import ApiError
 from models.dto.overview import AlarmOut, AlarmPageOut, AttributionOut, AuditOut
 from models.entity.overview import AlarmEntity, AttributionEntity
@@ -123,7 +124,7 @@ class AlarmService:
                     id=f"AL-{seq}", time=now_ms(), level="critical", machine_id=machine.machine_id,
                     source="通信", code="COMM_DISCONNECT", message="通信断开（DISCONNECTED），状态查询与指令下发均返回 503", acked=False,
                 ))
-            elif machine.comm_status == "DEGRADED" and settings.degraded_alarm:
+            elif machine.comm_status == "DEGRADED" and (live.degraded_alarm if live.ready else settings.degraded_alarm):
                 push(AlarmEntity(
                     id=f"AL-{seq}", time=now_ms(), level="minor", machine_id=machine.machine_id,
                     source="通信", code="PACKET_LOSS", message=f"通信降级（DEGRADED · {machine.comm_note or '丢包'}）", acked=False,
@@ -142,7 +143,7 @@ class AlarmService:
                         id=f"AL-{seq}", time=now_ms(), level="major", machine_id=machine.machine_id, slot_index=slot.index,
                         source="槽位", code=_slot_code(slot.last_error), message=slot.last_error or "槽位进入 ERROR", acked=False,
                     ))
-                if settings.sentinel_as_data_anomaly:
+                if live.sentinel_as_data_anomaly if live.ready else settings.sentinel_as_data_anomaly:
                     for name, value in (("T0", slot.t0), ("T1", slot.t1), ("Ta", slot.ta)):
                         if is_sentinel(value):
                             push(AlarmEntity(
@@ -151,12 +152,13 @@ class AlarmService:
                             ))
                             break
         for bias in await self.machines.channel_biases():
-            if abs(bias.value) <= settings.drift_c:
+            limit = live.drift_c if live.ready else settings.drift_c
+            if abs(bias.value) <= limit:
                 continue
             push(AlarmEntity(
                 id=f"AL-{seq}", time=now_ms(), level="major", machine_id=bias.machine_id,
                 source="漂移", code="EQUIPMENT_ANOMALY",
-                message=f"{bias.channel} 通道估计漂移 {bias.value:+.2f} ℃，超过 {settings.drift_c:g} ℃ 设备异常阈值",
+                message=f"{bias.channel} 通道估计漂移 {bias.value:+.2f} ℃，超过 {limit:g} ℃ 设备异常阈值",
                 acked=False,
             ))
         for machine_id, item in await self._consecutive_failures():

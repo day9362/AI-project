@@ -3,7 +3,10 @@ from sqlalchemy import text
 
 from api.auth import router as auth_router
 from api.plans import router as plans_router
+from api.devices import router as devices_router
 from api.production import router as production_router
+from api.reports import router as reports_router
+from api.settings import router as settings_router
 from api.overview.alarms import router as alarms_router
 from api.overview.machines import router as machines_router
 from api.overview.stats import router as stats_router
@@ -19,6 +22,9 @@ api_router.include_router(alarms_router)
 api_router.include_router(ws_router)
 api_router.include_router(plans_router)
 api_router.include_router(production_router)
+api_router.include_router(devices_router)
+api_router.include_router(reports_router)
+api_router.include_router(settings_router)
 
 
 @api_router.get("/health")

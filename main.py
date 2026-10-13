@@ -10,7 +10,9 @@ from api.router import api_router
 from core.db import SessionLocal, engine
 from core.redis import redis
 from models.orm.base import Base
+from service.platform_state import apply_live
 from service.seed import seed_if_empty
+from service.settings_service import SettingsService
 from tasks.scheduler import start_scheduler, stop_scheduler
 from tasks.triggers import trigger_bus
 
@@ -24,10 +26,12 @@ async def lifespan(_: FastAPI):
     await redis.ping()
     async with SessionLocal() as session:
         await seed_if_empty(session)
+        stored = await SettingsService(session)._stored()
+        apply_live(stored)
         await session.commit()
     await trigger_bus.start()
     trigger_bus.emit("cleanup.idempotency")
-    start_scheduler()
+    start_scheduler(stored["jobs"])
     yield
     stop_scheduler()
     await trigger_bus.stop()

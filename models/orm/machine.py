@@ -59,6 +59,21 @@ class RunSampleOrm(Base):
     power_w: Mapped[float] = mapped_column(Float)
 
 
+class CompensationWriteOrm(Base):
+    """补偿写入记录。只记本平台发出的修改。"""
+
+    __tablename__ = "compensation_writes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_id: Mapped[str] = mapped_column(String(16), index=True)
+    actor: Mapped[str] = mapped_column(String(64), default="")
+    mode: Mapped[str] = mapped_column(String(8), default="set")
+    before: Mapped[list] = mapped_column(JSONB, default=list)
+    after: Mapped[list] = mapped_column(JSONB, default=list)
+    audit_id: Mapped[str] = mapped_column(String(32), default="")
+    created_at: Mapped[int] = mapped_column(BigInteger, index=True)
+
+
 class ChannelBiasOrm(Base):
     __tablename__ = "channel_biases"
     __table_args__ = (UniqueConstraint("machine_id", "channel", name="uq_channel_bias"),)

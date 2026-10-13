@@ -16,7 +16,10 @@ from service.overview.alarm_service import AlarmService
 from service.overview.machine_service import MachineService
 from service.overview.stats_service import StatsService
 from service.plan_service import PlanService
+from service.device_service import DeviceService
 from service.production_service import ProductionService
+from service.report_service import ReportService
+from service.settings_service import SettingsService
 
 
 async def db_session():
@@ -66,6 +69,27 @@ def production_service(
     user: Annotated[UserEntity, Depends(current_user)],
 ) -> ProductionService:
     return ProductionService(session, user)
+
+
+def device_service(
+    session: Annotated[AsyncSession, Depends(db_session)],
+    user: Annotated[UserEntity, Depends(current_user)],
+) -> DeviceService:
+    return DeviceService(session, user)
+
+
+def report_service(
+    session: Annotated[AsyncSession, Depends(db_session)],
+    _: Annotated[UserEntity, Depends(current_user)],
+) -> ReportService:
+    return ReportService(session)
+
+
+def settings_service(
+    session: Annotated[AsyncSession, Depends(db_session)],
+    user: Annotated[UserEntity, Depends(current_user)],
+) -> SettingsService:
+    return SettingsService(session, user)
 
 
 def plan_service(

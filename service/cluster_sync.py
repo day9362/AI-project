@@ -4,7 +4,7 @@ from typing import Any
 import httpx
 
 from core.clock import now_ms
-from core.config import settings
+from service.platform_state import endpoint
 from models.entity.overview import MachineEntity, RunEntity, SlotEntity
 from repo.machine_repo import MachineRepo
 from repo.production_repo import ProductionRepo
@@ -15,21 +15,30 @@ log = logging.getLogger(__name__)
 
 class ClusterClient:
     def __init__(self) -> None:
-        self.base = settings.cluster_base_url.rstrip("/")
+        self.base = endpoint()[0]
 
     async def get(self, path: str, timeout: float | None = None) -> Any:
         return await self._send("GET", path, timeout=timeout)
 
-    async def post(self, path: str, body: dict) -> Any:
+    async def post(self, path: str, body: dict | None = None) -> Any:
         return await self._send("POST", path, body)
 
+    async def put(self, path: str, body: dict) -> Any:
+        return await self._send("PUT", path, body)
+
+    async def delete(self, path: str) -> Any:
+        return await self._send("DELETE", path)
+
     async def _send(self, method: str, path: str, body: dict | None = None, timeout: float | None = None) -> Any:
+        base, token, default_timeout = endpoint()
         headers = {}
-        if settings.cluster_token:
-            headers["Authorization"] = f"Bearer {settings.cluster_token}"
-        async with httpx.AsyncClient(base_url=self.base, timeout=timeout or settings.cluster_timeout_s) as client:
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        async with httpx.AsyncClient(base_url=base, timeout=timeout or default_timeout) as client:
             response = await client.request(method, path, headers=headers, json=body)
             response.raise_for_status()
+            if not response.content:
+                return {}
             return response.json()
 
 
